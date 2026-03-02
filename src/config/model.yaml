@@ -1,0 +1,56 @@
+mlflow:
+  tracking_uri: "http://mlflow:5000"  
+  experiment_name: "cheque-signature-verification"
+  run_tags:
+    project: "cheque-signature-ml"
+    team: "ml-pipeline"
+
+backbone:
+  name: "efficientnet_b0"             
+  pretrained: true
+  pretrained_source: "imagenet"
+  freeze_layers_up_to: "block4"      
+  embedding_dim: 128
+
+siamese:
+  input_shape: [1, 128, 256]         
+  distance_metric: "cosine"           
+  margin: 0.5                        
+
+training:
+  epochs: 50
+  batch_size: 32
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  optimizer: "adam"                   
+  scheduler:
+    name: "cosine_annealing"          
+    t_max: 50
+    eta_min: 0.000001
+  early_stopping:
+    enabled: true
+    patience: 10
+    monitor: "val_eer"
+    mode: "min"
+
+verification:
+  similarity_threshold: 0.75        
+  threshold_search_steps: 100       
+  decision:
+    accept_label: "GENUINE"
+    reject_label: "FORGED"
+    uncertain_band: 0.05            
+
+quality_model:
+  enabled: true
+  min_quality_score: 0.4             
+  features:
+    - "contrast"
+    - "sharpness"
+    - "ink_coverage"
+
+checkpoints:
+  dir: "src/models/checkpoints"
+  save_best_only: true
+  monitor: "val_eer"
+  filename_template: "epoch_{epoch:03d}_eer_{val_eer:.4f}.pt"

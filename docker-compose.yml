@@ -1,0 +1,87 @@
+
+services:
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.13.0
+    container_name: cheque_mlflow
+    restart: always
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlflow/mlruns
+      - ./src/models/checkpoints:/mlflow/artifacts
+    environment:
+      - MLFLOW_BACKEND_STORE_URI=sqlite:////mlflow/mlruns/mlflow.db
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
+    healthcheck:
+      test: [
+        "CMD-SHELL",
+        "python - << 'EOF'\nimport urllib.request\nurllib.request.urlopen('http://localhost:5000', timeout=2)\nEOF"
+      ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    command: >
+      mlflow server
+      --backend-store-uri sqlite:////mlflow/mlruns/mlflow.db
+      --default-artifact-root /mlflow/artifacts
+      --host 0.0.0.0
+      --port 5000
+    networks:
+      - cheque_net
+
+  pipeline:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: cheque_pipeline
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src                       
+      - ./src/data:/app/src/data              
+      - ./src/models/checkpoints:/app/src/models/checkpoints
+      - ./mlruns:/app/mlruns
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - PYTHONPATH=/app
+    env_file:
+      - .env
+    command: python src/main.py
+    networks:
+      - cheque_net
+  # jupyter:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/Dockerfile
+  #   container_name: cheque_jupyter
+  #   depends_on:
+  #     - mlflow
+  #   ports:
+  #     - "8888:8888"
+  #   volumes:
+  #     - ./src:/app/src
+  #     - ./notebooks:/app/notebooks
+  #     - ./src/data:/app/src/data
+  #   environment:
+  #     - MLFLOW_TRACKING_URI=http://mlflow:5000
+  #     - PYTHONPATH=/app
+  #   env_file:
+  #     - .env
+  #   command: >
+  #     jupyter lab
+  #       --ip=0.0.0.0
+  #       --port=8888
+  #       --no-browser
+  #       --allow-root
+  #       --NotebookApp.token=''
+  #   networks:
+  #     - cheque_net
+
+networks:
+  cheque_net:
+    driver: bridge
+
+volumes:
+  mlruns:

@@ -1,0 +1,161 @@
+"""
+src/preprocessing/pipeline.py
+Orchestrates the full preprocessing pipeline:
+    load → dpi_normalize → resolve → deskew → perspective → bg_remove → denoise → roi
+
+Each stage is individually toggleable via preprocessing.yaml.
+Intermediate outputs can optionally be saved for debugging.
+"""
+
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Optional
+
+import numpy as np
+from loguru import logger
+
+from src.utils.config_loader import preprocessing_cfg as cfg
+from src.preprocessing.load_image import load_image
+from src.preprocessing.dpi_normalization import normalize_dpi
+from src.preprocessing.resolution_enforcement import enforce_resolution
+from src.preprocessing.skew_correction import correct_skew
+from src.preprocessing.perspective_correction import correct_perspective
+from src.preprocessing.background_removal import remove_background
+from src.preprocessing.noise_removal import remove_noise
+from src.preprocessing.roi_extraction import extract_roi, save_roi
+
+
+@dataclass
+class PreprocessingResult:
+    cheque_id: str
+    roi: Optional[np.ndarray] = None                         
+    metadata: dict = field(default_factory=dict)
+    stage_times_ms: dict = field(default_factory=dict)
+    intermediates: dict = field(default_factory=dict)  
+    success: bool = True
+    error: Optional[str] = None
+
+class PreprocessingPipeline:
+    SAVE_INTERMEDIATES: bool = cfg.output.save_intermediates
+    INTERMEDIATE_DIR: str = cfg.output.intermediate_dir
+
+    def __init__(self):
+        logger.info("PreprocessingPipeline initialised with config from preprocessing.yaml")
+
+    def run(self, image_path: str | Path, cheque_id: Optional[str] = None) -> PreprocessingResult:
+        image_path = Path(image_path)
+        cheque_id = cheque_id or image_path.stem
+        result = PreprocessingResult(cheque_id=cheque_id)
+        timings = {}
+        intermediates = {}
+        logger.info(f"[{cheque_id}] Starting preprocessing pipeline")
+        try:
+            # Stage 1: Load
+            t = time.perf_counter()
+            image, metadata = load_image(image_path)
+            timings["load"] = _ms(t)
+            result.metadata = metadata
+            intermediates["load"] = image.copy()
+            logger.debug(f"[{cheque_id}] Stage 1/7 LOAD {timings['load']:.1f}ms")
+
+            # Stage 2: DPI Normalisation 
+            t = time.perf_counter()
+            image = normalize_dpi(image, source_dpi=metadata["dpi"])
+            timings["dpi_normalize"] = _ms(t)
+            intermediates["dpi_normalize"] = image.copy()
+            logger.debug(f"[{cheque_id}] Stage 2/7 DPI_NORMALIZE {timings['dpi_normalize']:.1f}ms")
+
+            # Stage 3: Resolution Enforcement 
+            t = time.perf_counter()
+            image = enforce_resolution(image)
+            timings["resolution"] = _ms(t)
+            intermediates["resolution"] = image.copy()
+            logger.debug(f"[{cheque_id}] Stage 3/7 RESOLUTION {timings['resolution']:.1f}ms")
+
+            # Stage 4: Skew Correction
+            t = time.perf_counter()
+            image = correct_skew(image)
+            timings["skew"] = _ms(t)
+            intermediates["skew"] = image.copy()
+            logger.debug(f"[{cheque_id}] Stage 4/7 SKEW {timings['skew']:.1f}ms")
+
+            # Stage 5: Perspective Correction 
+            t = time.perf_counter()
+            image = correct_perspective(image)
+            timings["perspective"] = _ms(t)
+            intermediates["perspective"] = image.copy()
+            logger.debug(f"[{cheque_id}] Stage 5/7 PERSPECTIVE {timings['perspective']:.1f}ms")
+
+             # Stage 8: ROI Extraction 
+            t = time.perf_counter()
+            image = extract_roi(image)
+            timings["roi"] = _ms(t)
+            intermediates["roi"] = image.copy()
+
+            # Stage 7: Noise Removal 
+            t = time.perf_counter()
+            image = remove_noise(image)
+            timings["noise"] = _ms(t)
+            intermediates["noise"] = image.copy()
+            logger.debug(f"[{cheque_id}] Stage 7/7 NOISE {timings['noise']:.1f}ms")
+            
+            # Stage 6: Background Removal
+            t = time.perf_counter()
+            image = remove_background(image)
+            timings["background"] = _ms(t)
+            intermediates["background"] = image.copy()
+            logger.debug(f"[{cheque_id}] Stage 6/7 BACKGROUND {timings['background']:.1f}ms")
+
+           
+
+            total = sum(timings.values())
+            logger.success(
+                f"[{cheque_id}] Pipeline complete in {total:.1f}ms | "
+                f"ROI shape: {image.shape}"
+            )
+
+            result.roi = image
+            result.stage_times_ms = timings
+
+            if self.SAVE_INTERMEDIATES:
+                result.intermediates = intermediates
+                self._save_intermediates(cheque_id, intermediates)
+
+        except Exception as exc:
+            logger.error(f"[{cheque_id}] Pipeline failed: {exc}")
+            result.success = False
+            result.error = str(exc)
+            raise
+
+        return result
+
+    def run_batch(
+        self,
+        image_paths: list[str | Path],
+        save_rois: bool = True,
+    ) -> list[PreprocessingResult]:
+        results = []
+        for path in image_paths:
+            res = self.run(path)
+            if res.success and save_rois:
+                save_roi(res.roi, res.cheque_id)
+            results.append(res)
+
+        succeeded = sum(1 for r in results if r.success)
+        logger.info(f"Batch complete: {succeeded}/{len(results)} succeeded")
+        return results
+
+    def _save_intermediates(self, cheque_id: str, intermediates: dict) -> None:
+        import cv2
+        out_dir = Path(self.INTERMEDIATE_DIR) / cheque_id
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for stage, img in intermediates.items():
+            fpath = out_dir / f"{stage}.png"
+            cv2.imwrite(str(fpath), img)
+        logger.debug(f"Intermediates saved to {out_dir}")
+
+def _ms(start: float) -> float:
+    return (time.perf_counter() - start) * 1000

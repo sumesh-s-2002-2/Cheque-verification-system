@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# Data — do not commit raw cheque images
+src/data/raw/
+src/data/processed/
+src/data/synthetic/
+src/data/signatures/
+src/data/labels/
+
+# Models
+src/models/checkpoints/*.pt
+src/models/checkpoints/*.pth
+
+# MLflow
+mlruns/
+mlflow.db
+
+# Logs
+logs/
+
+# Env
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
