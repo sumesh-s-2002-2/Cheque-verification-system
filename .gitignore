@@ -7,12 +7,6 @@ venv/
 dist/
 build/
 
-# Data — do not commit raw cheque images
-src/data/raw/
-src/data/processed/
-src/data/synthetic/
-src/data/signatures/
-src/data/labels/
 
 # Models
 src/models/checkpoints/*.pt
