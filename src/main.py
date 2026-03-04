@@ -111,9 +111,11 @@ def main() -> None:
                 epochs=training_cfg.training.max_epochs,
                 lr=training_cfg.training.learning_rate,
                 margin=margin,
+                min_delta=training_cfg.training.min_delta,
+                patience=training_cfg.training.patience,
                 save_path=save_path
             )
-            
+
         logger.success("Training completed")
         logger.success(f"Pipeline run complete. MLflow run ID: {run.info.run_id}")
 

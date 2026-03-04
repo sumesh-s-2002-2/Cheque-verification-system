@@ -9,7 +9,6 @@ class ContrastiveLoss(nn.Module):
         self.margin = margin
 
     def forward(self, emb1, emb2, label):
-        # Euclidean distance
         distance = F.pairwise_distance(emb1, emb2)
 
         loss = torch.mean(

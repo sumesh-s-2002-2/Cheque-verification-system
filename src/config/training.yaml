@@ -2,6 +2,8 @@ training:
   max_epochs: 30
   batch_size: 4
   learning_rate: 1e-4
+  patience : 5
+  min_delta : 1e-4
 
 model:
   embedding_size: 256
