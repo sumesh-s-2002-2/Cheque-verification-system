@@ -129,7 +129,7 @@ def train_model(
     mlflow.log_metric("test_accuracy", metrics["accuracy"])
     mlflow.log_metric("test_precision", metrics["precision"])
     mlflow.log_metric("test_recall", metrics["recall"])
-    mlflow.log_metric("test_f1_score", metrics["f1_score"])
+    mlflow.log_metric("test_f1_score", metrics["f1"])
 
     cm = metrics["confusion_matrix"]
     logger.info(f"Confusion Matrix:\n{cm}")
