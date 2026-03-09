@@ -34,7 +34,7 @@ def get(config: DictConfig, key: str, default: Any = None) -> Any:
 training_cfg: DictConfig = load_config("training")
 model_cfg: DictConfig = load_config("model")
 augmentation_cfg: DictConfig = load_config("augmentation")
-if training_cfg.is_Active:
+if training_cfg.training.is_Active:
     preprocessing_cfg: DictConfig = load_config("preprocessing_train")
 else:
     preprocessing_cfg: DictConfig = load_config("preprocessing_demo")

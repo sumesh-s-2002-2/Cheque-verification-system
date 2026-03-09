@@ -17,7 +17,7 @@ from typing import Optional
 import numpy as np
 from loguru import logger
 
-from src.utils.config_loader import preprocessing_cfg, refsig_preprocessing
+from src.utils.config_loader import preprocessing_cfg
 from src.preprocessing.load_image import load_image
 from src.preprocessing.dpi_normalization import normalize_dpi
 from src.preprocessing.resolution_enforcement import enforce_resolution
