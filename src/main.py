@@ -93,10 +93,23 @@ def main() -> None:
 
         model.cnn.load_state_dict(checkpoint["cnn"], strict=True)
         model.fc.load_state_dict(checkpoint["fc"], strict=True)
-
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.eval()
-
         margins = training_cfg.loss.margins
+
+        mlflow.log_params({
+            "max_epochs": training_cfg.training.max_epochs,
+            "learning_rate": training_cfg.training.learning_rate,
+            "margin": margins,
+            "optimizer": "AdamW",
+            "cnn_frozen": True,
+            "trainable_head": "fc",
+            "batch_size": train_loader.batch_size,
+            "device": device.type,
+            "early_stopping_patience": training_cfg.training.patience,
+            "early_stopping_min_delta": float(training_cfg.training.min_delta),
+        })
+
         for margin in margins:
             logger.info(f"Starting training {margin}"
                         f"max_epocs : {training_cfg.training.max_epochs}"
