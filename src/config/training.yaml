@@ -1,13 +1,13 @@
 training:
+  is_Active : true
   max_epochs: 30
   batch_size: 8
   learning_rate: 1e-4
   patience : 3
   min_delta : 1e-4
-
 model:
   embedding_size: 256
-
+  similarity_threshold : [0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9]
 loss:
   margins: [0.5, 0.8, 1.0]
 

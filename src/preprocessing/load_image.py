@@ -66,7 +66,6 @@ def _extract_dpi(pil_img: Image.Image) -> int:
 
 
 def validate_image(image: np.ndarray) -> bool:
-    """Basic sanity check: non-empty array with expected bit depth."""
     if image is None or image.size == 0:
         return False
     if image.dtype != np.uint8:

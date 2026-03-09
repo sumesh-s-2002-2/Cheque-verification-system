@@ -24,22 +24,10 @@ load_dotenv()
 setup_logging()
 
 
-def main() -> None:
-    mlflow.set_tracking_uri(model_cfg.mlflow.tracking_uri)
-    mlflow.set_experiment(model_cfg.mlflow.experiment_name)
-
-    with mlflow.start_run(tags=dict(model_cfg.mlflow.run_tags)) as run:
-        logger.info(f"MLflow run started: {run.info.run_id}")
-
-        mlflow.log_params({
-            "target_dpi": preprocessing_cfg.image.target_dpi,
-            "color_mode": preprocessing_cfg.image.color_mode,
-            "skew_method": preprocessing_cfg.skew_correction.method,
-            "bg_removal_method": preprocessing_cfg.background_removal.method,
-            "roi_method": preprocessing_cfg.roi_extraction.method,
-            "roi_output_w": preprocessing_cfg.roi_extraction.output.width,
-            "roi_output_h": preprocessing_cfg.roi_extraction.output.height,
-        })
+def main() -> None:    
+    if(training_cfg.training.is_Active):
+        mlflow.set_tracking_uri(model_cfg.mlflow.tracking_uri)
+        mlflow.set_experiment(model_cfg.mlflow.experiment_name)
 
         df = load_pairs_csv("/app/src/data/csv/data.csv")
         logger.info(f"Loaded CSV with {len(df)} pairs")
@@ -54,14 +42,6 @@ def main() -> None:
         train_ds = SiamesePairDataset(train)
         val_ds   = SiamesePairDataset(val)
         test_ds  = SiamesePairDataset(test)
-
-        train_loader = DataLoader(
-            train_ds,
-            batch_size=model_cfg.training.batch_size,
-            shuffle=True,
-            num_workers=0,
-            pin_memory=False
-        )
 
         val_loader = DataLoader(
             val_ds,
@@ -79,58 +59,72 @@ def main() -> None:
 
         logger.success("Datasets and DataLoaders initialized")
 
+        train_loader = DataLoader(
+                        train_ds,
+                        batch_size=model_cfg.training.batch_size,
+                        shuffle=True,
+                        num_workers=0,
+                        pin_memory=False)
+        
         img1, img2, label = next(iter(train_loader))
         logger.info(
             f"Sample batch shapes → img1: {img1.shape}, img2: {img2.shape}"
         )
-
-        logger.info("Model training stage")
-
-        model = SiameseNetwork(
-            embedding_size=training_cfg.model.embedding_size
-        )
-        checkpoint = torch.load(training_cfg.paths.pretrained_model, map_location="cpu")
-
-        model.cnn.load_state_dict(checkpoint["cnn"], strict=True)
-        model.fc.load_state_dict(checkpoint["fc"], strict=True)
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model.eval()
         margins = training_cfg.loss.margins
 
-        mlflow.log_params({
-            "max_epochs": training_cfg.training.max_epochs,
-            "learning_rate": training_cfg.training.learning_rate,
-            "margin": margins,
-            "optimizer": "AdamW",
-            "cnn_frozen": True,
-            "trainable_head": "fc",
-            "batch_size": train_loader.batch_size,
-            "device": device.type,
-            "early_stopping_patience": training_cfg.training.patience,
-            "early_stopping_min_delta": float(training_cfg.training.min_delta),
-        })
-
         for margin in margins:
+            model = SiameseNetwork(
+            embedding_size=training_cfg.model.embedding_size)
+            checkpoint = torch.load(training_cfg.paths.pretrained_model, map_location="cpu")
+
+            model.cnn.load_state_dict(checkpoint["cnn"], strict=True)
+            model.fc.load_state_dict(checkpoint["fc"], strict=True)
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            model.eval()
+
             logger.info(f"Starting training {margin}"
                         f"max_epocs : {training_cfg.training.max_epochs}"
                         f"learning rate : {training_cfg.training.learning_rate}")
             
             save_path = f"{training_cfg.paths.save_model}/model_margin_{margin}.pt"
-            train_model(
-                model=model,
-                train_loader=train_loader,
-                test_loader=test_loader,
-                val_loader=val_loader,
-                epochs=training_cfg.training.max_epochs,
-                lr=training_cfg.training.learning_rate,
-                margin=margin,
-                min_delta=training_cfg.training.min_delta,
-                patience=training_cfg.training.patience,
-                save_path=save_path
-            )
+
+            with mlflow.start_run(tags=dict(model_cfg.mlflow.run_tags)) as run:
+                mlflow.log_params({
+                    "target_dpi": preprocessing_cfg.image.target_dpi,
+                    "color_mode": preprocessing_cfg.image.color_mode,
+                    "skew_method": preprocessing_cfg.skew_correction.method,
+                    "bg_removal_method": preprocessing_cfg.background_removal.method,
+                    "roi_method": preprocessing_cfg.roi_extraction.method,
+                    "roi_output_w": preprocessing_cfg.roi_extraction.output.width,
+                    "roi_output_h": preprocessing_cfg.roi_extraction.output.height,
+                    "max_epochs": training_cfg.training.max_epochs,
+                    "learning_rate": training_cfg.training.learning_rate,
+                    "margin": margin,
+                    "optimizer": "AdamW",
+                    "cnn_frozen": True,
+                    "trainable_head": "fc",
+                    "batch_size": train_loader.batch_size,
+                    "device": device.type,
+                    "early_stopping_patience": training_cfg.training.patience,
+                    "early_stopping_min_delta": float(training_cfg.training.min_delta),
+                })
+
+                train_model(
+                    model=model,
+                    train_loader=train_loader,
+                    test_loader=test_loader,
+                    val_loader=val_loader,
+                    epochs=training_cfg.training.max_epochs,
+                    lr=training_cfg.training.learning_rate,
+                    margin=margin,
+                    min_delta=training_cfg.training.min_delta,
+                    patience=training_cfg.training.patience,
+                    save_path=save_path
+                )
 
         logger.success("Training completed")
         logger.success(f"Pipeline run complete. MLflow run ID: {run.info.run_id}")
-
+    else:
+        pass
 if __name__ == "__main__":
     main()

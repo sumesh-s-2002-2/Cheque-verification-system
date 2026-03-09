@@ -7,6 +7,12 @@ venv/
 dist/
 build/
 
+#configurations
+src/config/preprocessing.yaml
+
+# data
+src/data/processed
+src/data/signatures
 
 # Models
 src/models/checkpoints/*.pt

@@ -3,8 +3,9 @@ import mlflow
 from loguru import logger
 from evaluation.contrastive_loss import ContrastiveLoss
 from src.evaluation.evaluate_model import evaluate
-from src.evaluation.evaluate_result import evaluate_classification
+from src.evaluation.evaluate_result import evaluate_classification,find_best_threshold
 from src.evaluation.metrics import log_confusion_matrix
+from src.utils.config_loader import model_cfg,training_cfg
 
 
 def train_model(
@@ -21,8 +22,7 @@ def train_model(
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
-
-    # Freeze CNN backbone
+    
     for param in model.cnn.parameters():
         param.requires_grad = False
     model.cnn.eval()
@@ -34,19 +34,6 @@ def train_model(
         model.fc.parameters(),
         lr=float(lr)
     )
-
-    mlflow.log_params({
-        "epochs": epochs,
-        "learning_rate": lr,
-        "margin": margin,
-        "optimizer": "AdamW",
-        "cnn_frozen": True,
-        "trainable_head": "fc",
-        "batch_size": train_loader.batch_size,
-        "device": device.type,
-        "early_stopping_patience": patience,
-        "early_stopping_min_delta": float(min_delta),
-    })
 
     best_val_loss = float("inf")
     epochs_without_improvement = 0
@@ -119,19 +106,22 @@ def train_model(
     mlflow.log_metric("test_loss", test_loss)
     logger.success(f" Final Test Loss: {test_loss:.4f}")
 
+    logger.info(f"Finding the best threshold for margin : {margin}....")
+    best_threshold, best_f1 = find_best_threshold(model, val_loader, device, training_cfg.model.similarity_threshold)
+    logger.info(f"Best threshold  : {best_threshold}, best F1: {best_f1}")
+
     metrics = evaluate_classification(
         model=model,
         dataloader=test_loader,
         device=device,
-        threshold=margin
+        threshold=best_threshold
     )
 
     mlflow.log_metric("test_accuracy", metrics["accuracy"])
     mlflow.log_metric("test_precision", metrics["precision"])
     mlflow.log_metric("test_recall", metrics["recall"])
     mlflow.log_metric("test_f1_score", metrics["f1"])
-
+ 
     cm = metrics["confusion_matrix"]
     logger.info(f"Confusion Matrix:\n{cm}")
-
     log_confusion_matrix(cm)
