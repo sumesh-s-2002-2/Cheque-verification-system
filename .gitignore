@@ -15,7 +15,6 @@ src/data/processed
 src/data/signatures
 
 # Models
-src/models/checkpoints/*.pt
 src/models/checkpoints/*.pth
 
 # MLflow
