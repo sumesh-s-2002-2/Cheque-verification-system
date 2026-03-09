@@ -6,7 +6,7 @@ image:
   bit_depth: 8                     # 8 | 16
 
 dpi_normalization:
-  enabled: false
+  enabled: true
   default_assumed_dpi: 100      
   resample_filter: "LANCZOS"       # PIL filter: LANCZOS | BICUBIC | BILINEAR
 
@@ -21,7 +21,7 @@ resolution_enforcement:
   pad_color: 255               
 
 skew_correction:
-  enabled: false
+  enabled: true
   method: "projection_profile"                  # hough | projection_profile | deskew_lib
   max_skew_angle_deg: 10.0    
   hough:
@@ -69,7 +69,7 @@ noise_removal:
     iterations: 1
 
 roi_extraction:
-  enabled: false
+  enabled: true
   method: "model"            
   fixed_ratio:
     x_start: 0.50                 
@@ -93,101 +93,3 @@ output:
   jpeg_quality: 95                
   filename_template: "{cheque_id}_{stage}.{ext}"
 
-
-
-
-#2 for cheque images
-# image:
-#   target_dpi: 300
-#   target_width: 1600
-#   target_height: 800
-#   color_mode: "grayscale"
-#   bit_depth: 8
-
-# dpi_normalization:
-#   enabled: false
-#   default_assumed_dpi: 100
-#   resample_filter: "LANCZOS"
-
-# resolution_enforcement:
-#   enabled: false
-#   min_width: 1000
-#   min_height: 500
-#   max_width: 4000
-#   max_height: 2000
-#   reject_below_min: false
-#   pad_to_aspect_ratio: true
-#   pad_color: 255
-
-# skew_correction:
-#   enabled: false
-#   method: "projection_profile"
-#   max_skew_angle_deg: 10.0
-#   hough:
-#     threshold: 100
-#     min_line_length: 100
-#     max_line_gap: 10
-#   background_fill: 255
-
-# perspective_correction:
-#   enabled: false
-#   method: "contour"
-#   min_contour_area_ratio: 0.3
-#   approx_epsilon_factor: 0.02
-
-# background_removal:
-#   enabled: true
-#   method: "otsu"
-#   otsu:
-#     blur_kernel_size: 3
-#     morph_kernel_size: 3
-#     morph_iterations: 1
-#   adaptive:
-#     block_size: 51
-#     c_constant: 2
-#   invert_if_dark_bg: false
-
-# noise_removal:
-#   enabled: true
-#   gaussian_blur:
-#     enabled: false
-#     kernel_size: 3
-#     sigma: 0
-#   median_blur:
-#     enabled: false
-#     kernel_size: 3
-#   bilateral_filter:
-#     enabled: false
-#     d: 9
-#     sigma_color: 75
-#     sigma_space: 75
-#   morphological:
-#     enabled: false
-#     operation: "closing"
-#     kernel_size: 2
-#     iterations: 1
-
-# roi_extraction:
-#   enabled: true
-#   method: "model"
-#   fixed_ratio:
-#     x_start: 0.50
-#     y_start: 0.55
-#     x_end: 0.95
-#     y_end: 0.90
-#   contour_detection:
-#     min_area: 5000
-#     padding_px: 10
-#   output:
-#     width: 105
-#     height: 105
-#     keep_aspect_ratio: true
-#     pad_color: 255
-
-# output:
-#   save_intermediates: true
-#   intermediate_dir: "src/data/processed/intermediates"
-#   final_dir: "src/data/signatures"
-#   format: "png"
-#   jpeg_quality: 95
-#   filename_template: "{cheque_id}_{stage}.{ext}"

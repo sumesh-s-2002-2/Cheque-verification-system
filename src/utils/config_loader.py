@@ -1,6 +1,5 @@
 from pathlib import Path
 from typing import Any
-
 import yaml
 from omegaconf import DictConfig, OmegaConf
 
@@ -28,8 +27,14 @@ def get(config: DictConfig, key: str, default: Any = None) -> Any:
         return default
 
 
-preprocessing_cfg: DictConfig = load_config("preprocessing")
-refsig_preprocessing: DictConfig=load_config("reference_signature_preprocessing")
-augmentation_cfg: DictConfig = load_config("augmentation")
-model_cfg: DictConfig = load_config("model")
+# ------------------------------------------------
+# Load base configs
+# ------------------------------------------------
+
 training_cfg: DictConfig = load_config("training")
+model_cfg: DictConfig = load_config("model")
+augmentation_cfg: DictConfig = load_config("augmentation")
+if training_cfg.is_Active:
+    preprocessing_cfg: DictConfig = load_config("preprocessing_train")
+else:
+    preprocessing_cfg: DictConfig = load_config("preprocessing_demo")
